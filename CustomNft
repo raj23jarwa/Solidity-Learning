@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+contract WhitelistedNFT is ERC721, Ownable(msg.sender){
+    using Counters for Counters.Counter;
+
+    Counters.Counter private _tokenIdCounter;
+
+    mapping(address => bool) private _whitelist;
+    uint256 public whitelistEndTime;
+
+    event TokenMinted(address indexed minter, uint256 indexed tokenId);
+
+    constructor(string memory name, string memory symbol, uint256 endTime) ERC721(name, symbol) {
+        whitelistEndTime = endTime;
+    }
+
+    function addToWhitelist(address[] memory accounts) external onlyOwner {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _whitelist[accounts[i]] = true;
+        }
+    }
+
+    function removeFromWhitelist(address account) external onlyOwner {
+        _whitelist[account] = false;
+    }
+
+    function mintNFT() external {
+        require(_whitelist[msg.sender], "Sender not whitelisted");
+        require(block.timestamp < whitelistEndTime, "Whitelist minting period has ended");
+
+        uint256 newItemId = _tokenIdCounter.current();
+        _safeMint(msg.sender, newItemId);
+        _tokenIdCounter.increment();
+
+        emit TokenMinted(msg.sender, newItemId);
+    }
+
+    function setWhitelistEndTime(uint256 endTime) external onlyOwner {
+        whitelistEndTime = endTime;
+    }
+
+    // To check whether an account is whitelisted or not
+
+    function isWhitelisted(address account) external view returns (bool) {
+    return _whitelist[account];
+}
+
+}
